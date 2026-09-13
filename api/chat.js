@@ -11,12 +11,12 @@ export default async function handler(req, res) {
 
   try {
     const geminiResponse = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" +
-        process.env.GOOGLE_API_KEY,
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-goog-api-key": process.env.GOOGLE_API_KEY,
         },
         body: JSON.stringify({
           contents: [
