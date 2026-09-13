@@ -5,7 +5,7 @@ import logoDark from "../assets/img/logo-gml-dark.png";
 import logoLight from "../assets/img/logo-gml-light.png";
 import navIcon1 from "../assets/img/nav-icon1.svg";
 import github from "../assets/img/github-mark-white.svg";
-import CV from "../assets/font/cvvvv.pdf";
+import CV from "../assets/font/CV_Godlight_Mounirou_DataEngineer_ep.pdf";
 import { HashLink } from "react-router-hash-link";
 import { useTheme } from "../hooks/useTheme";
 
