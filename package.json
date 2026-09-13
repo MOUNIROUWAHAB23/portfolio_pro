@@ -1,0 +1,18 @@
+{
+  "type": "module",
+  "name": "my-pfoolio-fullstack",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "npm run build --prefix client",
+    "postinstall": "npm install --prefix client"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.2",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "^6.9.0"
+  }
+}
