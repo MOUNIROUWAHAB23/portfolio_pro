@@ -8,7 +8,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || "";
 
 const INITIAL_MESSAGE = {
   from: "bot",
-  text: "Bonjour 👋 ! Je suis l'assistant AI de ce portfolio. Posez-moi une question.",
+  text: "Bonjour 👋 ! Je suis l'assistant IA du portfolio de Godlight. Vous pouvez me poser des questions sur son parcours, ses compétences, ses projets (data, ML, agents IA) ou son expérience en alternance.",
 };
 
 export default function ChatBotWidget() {
@@ -29,17 +29,22 @@ export default function ChatBotWidget() {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
 
+    const history = messages
+      .filter((m) => m !== INITIAL_MESSAGE)
+      .map(({ from, text }) => ({ from, text }));
+
     setMessages((prev) => [...prev, { from: "user", text: trimmed }]);
     setInput("");
     setLoading(true);
 
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/chat`, { message: trimmed });
+      const res = await axios.post(`${API_BASE_URL}/api/chat`, { message: trimmed, history });
       setMessages((prev) => [...prev, { from: "bot", text: res.data.reply }]);
-    } catch {
+    } catch (err) {
+      const serverReply = err?.response?.data?.reply;
       setMessages((prev) => [
         ...prev,
-        { from: "bot", text: "Désolé, une erreur est survenue. Veuillez réessayer." },
+        { from: "bot", text: serverReply || "Désolé, une erreur est survenue. Veuillez réessayer." },
       ]);
     } finally {
       setLoading(false);

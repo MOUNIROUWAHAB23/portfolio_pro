@@ -5,8 +5,16 @@ import nodemailer from "nodemailer";
 import path from "path";
 import { fileURLToPath } from "url";
 import fetch from "node-fetch"; // npm install node-fetch@2
+import {
+  SYSTEM_INSTRUCTION,
+  buildGeminiContents,
+  sanitizeMessage,
+} from "./lib/godlightContext.js";
 
 dotenv.config();
+
+const GEMINI_MODEL = "gemini-3.8-flash";
+const REQUEST_TIMEOUT_MS = 15000;
 
 const app = express();
 const PORT = 5000;
@@ -61,10 +69,26 @@ app.post("/api/contact", async (req, res) => {
 // === ENDPOINT CHATBOT (Google Gemini) ===
 
 app.post("/api/chat", async (req, res) => {
-  const { message } = req.body;
+  const message = sanitizeMessage(req.body?.message);
+  if (!message) {
+    return res.status(400).json({ reply: "Message manquant." });
+  }
+
+  if (!process.env.GOOGLE_API_KEY) {
+    console.error("GOOGLE_API_KEY manquante.");
+    return res.status(500).json({
+      reply: "L'assistant n'est pas configuré pour le moment. Merci d'utiliser le formulaire de contact.",
+    });
+  }
+
+  const contents = buildGeminiContents(req.body?.history, message);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
   try {
     const geminiResponse = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
       {
         method: "POST",
         headers: {
@@ -72,40 +96,35 @@ app.post("/api/chat", async (req, res) => {
           "x-goog-api-key": process.env.GOOGLE_API_KEY,
         },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: message }
-              ]
-            }
-          ]
+          systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+          contents,
+          generationConfig: { temperature: 0.6, maxOutputTokens: 512 },
         }),
+        signal: controller.signal,
       }
     );
 
     const data = await geminiResponse.json();
-    console.log("Réponse Gemini brute:", JSON.stringify(data, null, 2));
 
-    // Vérifie si la réponse contient bien un texte
     let reply = "Réponse vide.";
-    if (
-      data &&
-      Array.isArray(data.candidates) &&
-      data.candidates[0] &&
-      data.candidates[0].content &&
-      Array.isArray(data.candidates[0].content.parts) &&
-      data.candidates[0].content.parts[0] &&
-      typeof data.candidates[0].content.parts[0].text === "string"
-    ) {
-      reply = data.candidates[0].content.parts[0].text;
-    } else if (data.error && data.error.message) {
-      reply = "Erreur Gemini: " + data.error.message;
+    const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (typeof candidateText === "string" && candidateText.trim()) {
+      reply = candidateText.trim();
+    } else if (data?.error?.message) {
+      console.error("Erreur Gemini:", data.error.message);
+      reply = "Désolé, je n'ai pas pu répondre pour le moment. Réessayez ou utilisez le formulaire de contact.";
     }
 
     res.json({ reply });
   } catch (err) {
+    if (err.name === "AbortError") {
+      console.error("Timeout Gemini");
+      return res.status(504).json({ reply: "La réponse a pris trop de temps. Réessayez." });
+    }
     console.error("Erreur Google Gemini:", err);
     res.status(500).json({ reply: "Erreur serveur. Veuillez réessayer plus tard." });
+  } finally {
+    clearTimeout(timeout);
   }
 });
 
